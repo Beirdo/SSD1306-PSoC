@@ -22,22 +22,16 @@ All text above, and the splash screen must be included in any redistribution
  *
  * changes (c) 2016 Gavin Hurlbut <gjhurlbu@gmail.com>
  * released under the BSD License
+ *
+ * Ported to C for the Cypress PSoC chipset using FreeRTOS
+ * changes (c) 2019 Gavin Hurlbut <gjhurlbu@gmail.com>
+ * released under an MIT License
  */
 
 #ifndef _SSD1306_H_
 #define _SSD1306_H_
 
-#if ARDUINO >= 100
- #include "Arduino.h"
- #define WIRE_WRITE Wire.write
-#else
- #include "WProgram.h"
-  #define WIRE_WRITE Wire.send
-#endif
-
-#include <Adafruit_GFX.h>
-#include <Adafruit_FRAM_SPI.h>
-#include <FRAM_Cache.h>
+#include "project.h"
 
 #define BLACK 0
 #define WHITE 1
@@ -140,52 +134,34 @@ All text above, and the splash screen must be included in any redistribution
 #define SSD1306_VERTICAL_AND_RIGHT_HORIZONTAL_SCROLL 0x29
 #define SSD1306_VERTICAL_AND_LEFT_HORIZONTAL_SCROLL 0x2A
 
-class SSD1306 : public Adafruit_GFX {
- public:
-  SSD1306(uint8_t i2caddr = SSD1306_I2C_ADDRESS);
+typedef enum {
+    SET_BITS,
+    CLEAR_BITS,
+    TOGGLE_BITS,
+} oper_t;
 
-  void begin(uint8_t switchvcc = SSD1306_SWITCHCAPVCC);
-  void attachRAM(Adafruit_FRAM_SPI *fram, uint16_t buffer, uint16_t logo);
-  void initializeLogo(void);
+void SSD1306_initialize(uint8 i2caddr = SSD1306_I2C_ADDRESS);
 
-  void clearDisplay(void);
-  void invertDisplay(uint8_t i);
-  void display();
+void SSD1306_begin(uint8 switchvcc = SSD1306_SWITCHCAPVCC);
 
-  void startscrollright(uint8_t start, uint8_t stop);
-  void startscrollleft(uint8_t start, uint8_t stop);
+void SSD1306_clearDisplay(void);
+void SSD1306_invertDisplay(uint8 i);
+void SSD1306_display();
 
-  void startscrolldiagright(uint8_t start, uint8_t stop);
-  void startscrolldiagleft(uint8_t start, uint8_t stop);
-  void stopscroll(void);
+void SSD1306_startscrollright(uint8 start, uint8 stop);
+void SSD1306_startscrollleft(uint8 start, uint8 stop);
 
-  void dim(boolean dim);
+void SSD1306_startscrolldiagright(uint8 start, uint8 stop);
+void SSD1306_startscrolldiagleft(uint8 start, uint8 stop);
+void SSD1306_stopscroll(void);
 
-  void drawPixel(int16_t x, int16_t y, uint16_t color);
+void SSD1306_dim(boolean dim);
 
-  virtual void drawFastVLine(int16_t x, int16_t y, int16_t h, uint16_t color);
-  virtual void drawFastHLine(int16_t x, int16_t y, int16_t w, uint16_t color);
+void SSD1306_drawPixel(int16 x, int16 y, uint16 color);
 
- private:
-  inline void drawFastVLineInternal(int16_t x, int16_t y, int16_t h, uint16_t color) __attribute__((always_inline));
-  inline void drawFastHLineInternal(int16_t x, int16_t y, int16_t w, uint16_t color) __attribute__((always_inline));
+void SSD1306_drawFastVLine(int16 x, int16 y, int16 h, uint16 color);
+void SSD1306_drawFastHLine(int16 x, int16 y, int16 w, uint16 color);
 
-  void ssd1306_command(uint8_t c);
-
-  uint8_t readCache(int16_t x, int16_t y);
-  void writeCache(int16_t x, int16_t y, uint8_t value);
-  void operCache(int16_t x, int16_t y, oper_t oper_, uint8_t mask);
-
-  uint16_t getPixelAddress(int16_t x, int16_t y);
-
-  int8_t m_i2caddr;
-  int8_t m_vccstate;
-
-  Cache_Segment *m_logo_cache;
-  Cache_Segment *m_draw_cache;
-
-  Adafruit_FRAM_SPI *m_fram;
-  bool m_show_logo;
-};
+extern const uint8 lcd_logo[SSD1306_RAM_MIRROR_SIZE];
 
 #endif /* _SSD1306_H_ */
