@@ -28,13 +28,16 @@ All text above, and the splash screen below must be included in any redistributi
  * released under an MIT License
  */
 
-#include <stdlib.h>
+//#include <stdlib.h>
 
+#include "project.h"
 #include "SSD1306.h"
+#include "i2cRegisters.h"
 
 #ifndef _swap_int16
 #define _swap_int16(a, b) { int16 t = a; a = b; b = t; }
 #endif
+
 #define draw_pixel(x, y) (cache_pixel(_draw_cache, (x), (y)))
 #define cache_pixel(cache, x, y) ((cache)[SSD1306_PIXEL_ADDR((x), (y))])
 
@@ -117,14 +120,6 @@ void SSD1306_setVccstate(uint8 vccstate) {
 }
 
 void SSD1306_begin(void) {
-  // I2C Init
-  Wire.begin();
-#ifdef __SAM3X8E__
-  // Force 400 KHz I2C, rawr! (Uses pins 20, 21 for SDA, SCL)
-  TWI1->TWI_CWGR = 0;
-  TWI1->TWI_CWGR = ((VARIANT_MCK / (2 * 400000)) - 4) * 0x101;
-#endif
-
   // Init sequence
   _ssd1306_command(SSD1306_DISPLAYOFF);            // 0xAE
   _ssd1306_command(SSD1306_SETDISPLAYCLOCKDIV);    // 0xD5
@@ -199,12 +194,7 @@ void SSD1306_invertDisplay(uint8 i) {
 static void _ssd1306_command(uint8 c) {
   // I2C
   uint8 control = 0x00;   // Co = 0, D/C = 0
-
-  Wire.setClock(400000);
-  Wire.beginTransmission(_i2caddr);
-  Wire.write(control);
-  Wire.write(c);
-  Wire.endTransmission();
+  i2c_register_write(_i2caddr, control, c);
 }
 
 // startScrolLright
@@ -309,15 +299,8 @@ void SSD1306_display(void) {
 
   for (int16 y = 0; y < SSD1306_LCDHEIGHT; y += 8) {
     for (uint8 x = 0; x < SSD1306_BUFFER_SIZE; x += 16) {
-      // send a bunch of data in one transmission
-      Wire.setClock(400000);
-      Wire.beginTransmission(_i2caddr);
-      Wire.write(0x40);
-      for (uint8 i = 0; i < 16; i++) {
-	uint8 data = cache_pixel(cache, x + i, y);
-        Wire.write(data);
-      }
-      Wire.endTransmission();
+      // Co = 0, D/C = 1
+      i2c_register_write_buffer(_i2caddr, 0x40, &cache_pixel(cache, x, y), 16);
     }
   }
 
