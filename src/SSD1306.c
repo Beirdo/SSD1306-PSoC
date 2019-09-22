@@ -33,10 +33,7 @@ All text above, and the splash screen below must be included in any redistributi
 #include "project.h"
 #include "SSD1306.h"
 #include "i2cRegisters.h"
-
-#ifndef _swap_int16
-#define _swap_int16(a, b) { int16 t = a; a = b; b = t; }
-#endif
+#include "utils.h"
 
 #define draw_pixel(x, y) (cache_pixel(_draw_cache, (x), (y)))
 #define cache_pixel(cache, x, y) ((cache)[SSD1306_PIXEL_ADDR((x), (y))])
@@ -63,7 +60,7 @@ static uint8 _textsize;
 static uint8 _rotation;
 static int _wrap;
 static int _cp437;  // if set, use correct CP437 characterset (default off)
-static GFXfont *gfxFont;
+static GFXfont *_gfxFont;
 
 void SSD1306_initialize(void) {
   _WIDTH = SSD1306_LCDWIDTH;
@@ -132,7 +129,7 @@ void SSD1306_begin(void) {
   _ssd1306_command(0x0);                           // no offset
   _ssd1306_command(SSD1306_SETSTARTLINE | 0x0);    // line #0
   _ssd1306_command(SSD1306_CHARGEPUMP);            // 0x8D
-  if (vccstate == SSD1306_EXTERNALVCC) {
+  if (_vccstate == SSD1306_EXTERNALVCC) {
     _ssd1306_command(0x10);
   } else {
     _ssd1306_command(0x14);
@@ -151,7 +148,7 @@ void SSD1306_begin(void) {
   _ssd1306_command(SSD1306_SETCOMPINS);            // 0xDA
   _ssd1306_command(0x12);
   _ssd1306_command(SSD1306_SETCONTRAST);           // 0x81
-  if (vccstate == SSD1306_EXTERNALVCC) {
+  if (_vccstate == SSD1306_EXTERNALVCC) {
     _ssd1306_command(0x9F);
   } else {
     _ssd1306_command(0xCF);
@@ -167,7 +164,7 @@ void SSD1306_begin(void) {
 #endif
 
   _ssd1306_command(SSD1306_SETPRECHARGE);          // 0xd9
-  if (vccstate == SSD1306_EXTERNALVCC) {
+  if (_vccstate == SSD1306_EXTERNALVCC) {
     _ssd1306_command(0x22);
   } else {
     _ssd1306_command(0xF1);
@@ -295,17 +292,17 @@ void SSD1306_display(void) {
   _ssd1306_command(0);                  // Page start address (0 = reset)
   _ssd1306_command((SSD1306_LCDHEIGHT >> 3) - 1); // Page end address
 
-  uint8 *cache = (_show_logo ? lcd_logo : _draw_cache);
+  uint8 *cache = (_show_logo ? (uint8 *)lcd_logo : _draw_cache);
 
   for (int16 y = 0; y < SSD1306_LCDHEIGHT; y += 8) {
-    for (uint8 x = 0; x < SSD1306_BUFFER_SIZE; x += 16) {
+    for (uint8 x = 0; x < SSD1306_LCDWIDTH; x += 16) {
       // Co = 0, D/C = 1
       i2c_register_write_buffer(_i2caddr, 0x40, &cache_pixel(cache, x, y), 16);
     }
   }
 
   if (_show_logo) {
-    clearDisplay();
+    SSD1306_clearDisplay();
   }
 }
 
@@ -317,11 +314,11 @@ void SSD1306_clearDisplay(void) {
 
 // the most basic function, set a single pixel
 void SSD1306_drawPixel(int16 x, int16 y, uint16 color) {
-  if ((x < 0) || (x >= width()) || (y < 0) || (y >= height()))
+  if ((x < 0) || (x >= _width) || (y < 0) || (y >= _height))
     return;
 
   // check rotation, move pixel around if necessary
-  switch (getRotation()) {
+  switch (_rotation) {
   case 1:
     _swap_int16(x, y);
     x = _WIDTH - x - 1;
@@ -603,10 +600,10 @@ void SSD1306_drawCircle(int16 x0, int16 y0, int16 r,
   int16 x = 0;
   int16 y = r;
 
-  drawPixel(x0  , y0+r, color);
-  drawPixel(x0  , y0-r, color);
-  drawPixel(x0+r, y0  , color);
-  drawPixel(x0-r, y0  , color);
+  SSD1306_drawPixel(x0  , y0+r, color);
+  SSD1306_drawPixel(x0  , y0-r, color);
+  SSD1306_drawPixel(x0+r, y0  , color);
+  SSD1306_drawPixel(x0-r, y0  , color);
 
   while (x<y) {
     if (f >= 0) {
@@ -618,14 +615,14 @@ void SSD1306_drawCircle(int16 x0, int16 y0, int16 r,
     ddF_x += 2;
     f += ddF_x;
 
-    drawPixel(x0 + x, y0 + y, color);
-    drawPixel(x0 - x, y0 + y, color);
-    drawPixel(x0 + x, y0 - y, color);
-    drawPixel(x0 - x, y0 - y, color);
-    drawPixel(x0 + y, y0 + x, color);
-    drawPixel(x0 - y, y0 + x, color);
-    drawPixel(x0 + y, y0 - x, color);
-    drawPixel(x0 - y, y0 - x, color);
+    SSD1306_drawPixel(x0 + x, y0 + y, color);
+    SSD1306_drawPixel(x0 - x, y0 + y, color);
+    SSD1306_drawPixel(x0 + x, y0 - y, color);
+    SSD1306_drawPixel(x0 - x, y0 - y, color);
+    SSD1306_drawPixel(x0 + y, y0 + x, color);
+    SSD1306_drawPixel(x0 - y, y0 + x, color);
+    SSD1306_drawPixel(x0 + y, y0 - x, color);
+    SSD1306_drawPixel(x0 - y, y0 - x, color);
   }
 }
 
@@ -647,28 +644,28 @@ void SSD1306_drawCircleHelper( int16 x0, int16 y0,
     ddF_x += 2;
     f     += ddF_x;
     if (cornername & 0x4) {
-      drawPixel(x0 + x, y0 + y, color);
-      drawPixel(x0 + y, y0 + x, color);
+      SSD1306_drawPixel(x0 + x, y0 + y, color);
+      SSD1306_drawPixel(x0 + y, y0 + x, color);
     }
     if (cornername & 0x2) {
-      drawPixel(x0 + x, y0 - y, color);
-      drawPixel(x0 + y, y0 - x, color);
+      SSD1306_drawPixel(x0 + x, y0 - y, color);
+      SSD1306_drawPixel(x0 + y, y0 - x, color);
     }
     if (cornername & 0x8) {
-      drawPixel(x0 - y, y0 + x, color);
-      drawPixel(x0 - x, y0 + y, color);
+      SSD1306_drawPixel(x0 - y, y0 + x, color);
+      SSD1306_drawPixel(x0 - x, y0 + y, color);
     }
     if (cornername & 0x1) {
-      drawPixel(x0 - y, y0 - x, color);
-      drawPixel(x0 - x, y0 - y, color);
+      SSD1306_drawPixel(x0 - y, y0 - x, color);
+      SSD1306_drawPixel(x0 - x, y0 - y, color);
     }
   }
 }
 
 void SSD1306_fillCircle(int16 x0, int16 y0, int16 r,
  uint16 color) {
-  drawFastVLine(x0, y0-r, 2*r+1, color);
-  fillCircleHelper(x0, y0, r, 3, 0, color);
+  SSD1306_drawFastVLine(x0, y0-r, 2*r+1, color);
+  SSD1306_fillCircleHelper(x0, y0, r, 3, 0, color);
 }
 
 // Used to do circles and roundrects
@@ -692,12 +689,12 @@ void SSD1306_fillCircleHelper(int16 x0, int16 y0, int16 r,
     f     += ddF_x;
 
     if (cornername & 0x1) {
-      drawFastVLine(x0+x, y0-y, 2*y+1+delta, color);
-      drawFastVLine(x0+y, y0-x, 2*x+1+delta, color);
+      SSD1306_drawFastVLine(x0+x, y0-y, 2*y+1+delta, color);
+      SSD1306_drawFastVLine(x0+y, y0-x, 2*x+1+delta, color);
     }
     if (cornername & 0x2) {
-      drawFastVLine(x0-x, y0-y, 2*y+1+delta, color);
-      drawFastVLine(x0-y, y0-x, 2*x+1+delta, color);
+      SSD1306_drawFastVLine(x0-x, y0-y, 2*y+1+delta, color);
+      SSD1306_drawFastVLine(x0-y, y0-x, 2*x+1+delta, color);
     }
   }
 }
@@ -705,7 +702,7 @@ void SSD1306_fillCircleHelper(int16 x0, int16 y0, int16 r,
 // Bresenham's algorithm - thx wikpedia
 void SSD1306_drawLine(int16 x0, int16 y0, int16 x1, int16 y1,
  uint16 color) {
-  int16 steep = abs(y1 - y0) > abs(x1 - x0);
+  int16 steep = _abs(y1 - y0) > _abs(x1 - x0);
   if (steep) {
     _swap_int16(x0, y0);
     _swap_int16(x1, y1);
@@ -718,7 +715,7 @@ void SSD1306_drawLine(int16 x0, int16 y0, int16 x1, int16 y1,
 
   int16 dx, dy;
   dx = x1 - x0;
-  dy = abs(y1 - y0);
+  dy = _abs(y1 - y0);
 
   int16 err = dx / 2;
   int16 ystep;
@@ -731,9 +728,9 @@ void SSD1306_drawLine(int16 x0, int16 y0, int16 x1, int16 y1,
 
   for (; x0<=x1; x0++) {
     if (steep) {
-      drawPixel(y0, x0, color);
+      SSD1306_drawPixel(y0, x0, color);
     } else {
-      drawPixel(x0, y0, color);
+      SSD1306_drawPixel(x0, y0, color);
     }
     err -= dy;
     if (err < 0) {
@@ -746,56 +743,56 @@ void SSD1306_drawLine(int16 x0, int16 y0, int16 x1, int16 y1,
 // Draw a rectangle
 void SSD1306_drawRect(int16 x, int16 y, int16 w, int16 h,
  uint16 color) {
-  drawFastHLine(x, y, w, color);
-  drawFastHLine(x, y+h-1, w, color);
-  drawFastVLine(x, y, h, color);
-  drawFastVLine(x+w-1, y, h, color);
+  SSD1306_drawFastHLine(x, y, w, color);
+  SSD1306_drawFastHLine(x, y+h-1, w, color);
+  SSD1306_drawFastVLine(x, y, h, color);
+  SSD1306_drawFastVLine(x+w-1, y, h, color);
 }
 
 void SSD1306_fillRect(int16 x, int16 y, int16 w, int16 h,
  uint16 color) {
   // Update in subclasses if desired!
   for (int16 i=x; i<x+w; i++) {
-    drawFastVLine(i, y, h, color);
+    SSD1306_drawFastVLine(i, y, h, color);
   }
 }
 
 void SSD1306_fillScreen(uint16 color) {
-  fillRect(0, 0, _width, _height, color);
+  SSD1306_fillRect(0, 0, _width, _height, color);
 }
 
 // Draw a rounded rectangle
 void SSD1306_drawRoundRect(int16 x, int16 y, int16 w,
  int16 h, int16 r, uint16 color) {
   // smarter version
-  drawFastHLine(x+r  , y    , w-2*r, color); // Top
-  drawFastHLine(x+r  , y+h-1, w-2*r, color); // Bottom
-  drawFastVLine(x    , y+r  , h-2*r, color); // Left
-  drawFastVLine(x+w-1, y+r  , h-2*r, color); // Right
+  SSD1306_drawFastHLine(x+r  , y    , w-2*r, color); // Top
+  SSD1306_drawFastHLine(x+r  , y+h-1, w-2*r, color); // Bottom
+  SSD1306_drawFastVLine(x    , y+r  , h-2*r, color); // Left
+  SSD1306_drawFastVLine(x+w-1, y+r  , h-2*r, color); // Right
   // draw four corners
-  drawCircleHelper(x+r    , y+r    , r, 1, color);
-  drawCircleHelper(x+w-r-1, y+r    , r, 2, color);
-  drawCircleHelper(x+w-r-1, y+h-r-1, r, 4, color);
-  drawCircleHelper(x+r    , y+h-r-1, r, 8, color);
+  SSD1306_drawCircleHelper(x+r    , y+r    , r, 1, color);
+  SSD1306_drawCircleHelper(x+w-r-1, y+r    , r, 2, color);
+  SSD1306_drawCircleHelper(x+w-r-1, y+h-r-1, r, 4, color);
+  SSD1306_drawCircleHelper(x+r    , y+h-r-1, r, 8, color);
 }
 
 // Fill a rounded rectangle
 void SSD1306_fillRoundRect(int16 x, int16 y, int16 w,
  int16 h, int16 r, uint16 color) {
   // smarter version
-  fillRect(x+r, y, w-2*r, h, color);
+  SSD1306_fillRect(x+r, y, w-2*r, h, color);
 
   // draw four corners
-  fillCircleHelper(x+w-r-1, y+r, r, 1, h-2*r-1, color);
-  fillCircleHelper(x+r    , y+r, r, 2, h-2*r-1, color);
+  SSD1306_fillCircleHelper(x+w-r-1, y+r, r, 1, h-2*r-1, color);
+  SSD1306_fillCircleHelper(x+r    , y+r, r, 2, h-2*r-1, color);
 }
 
 // Draw a triangle
 void SSD1306_drawTriangle(int16 x0, int16 y0,
  int16 x1, int16 y1, int16 x2, int16 y2, uint16 color) {
-  drawLine(x0, y0, x1, y1, color);
-  drawLine(x1, y1, x2, y2, color);
-  drawLine(x2, y2, x0, y0, color);
+  SSD1306_drawLine(x0, y0, x1, y1, color);
+  SSD1306_drawLine(x1, y1, x2, y2, color);
+  SSD1306_drawLine(x2, y2, x0, y0, color);
 }
 
 // Fill a triangle
@@ -821,7 +818,7 @@ void SSD1306_fillTriangle(int16 x0, int16 y0,
     else if(x1 > b) b = x1;
     if(x2 < a)      a = x2;
     else if(x2 > b) b = x2;
-    drawFastHLine(a, y0, b-a+1, color);
+    SSD1306_drawFastHLine(a, y0, b-a+1, color);
     return;
   }
 
@@ -855,7 +852,7 @@ void SSD1306_fillTriangle(int16 x0, int16 y0,
     b = x0 + (x2 - x0) * (y - y0) / (y2 - y0);
     */
     if(a > b) _swap_int16(a,b);
-    drawFastHLine(a, y, b-a+1, color);
+    SSD1306_drawFastHLine(a, y, b-a+1, color);
   }
 
   // For lower part of triangle, find scanline crossings for segments
@@ -872,7 +869,7 @@ void SSD1306_fillTriangle(int16 x0, int16 y0,
     b = x0 + (x2 - x0) * (y - y0) / (y2 - y0);
     */
     if(a > b) _swap_int16(a,b);
-    drawFastHLine(a, y, b-a+1, color);
+    SSD1306_drawFastHLine(a, y, b-a+1, color);
   }
 }
 
@@ -880,18 +877,18 @@ void SSD1306_fillTriangle(int16 x0, int16 y0,
 // provided bitmap buffer using the specified foreground (for set bits)
 // and background (for clear bits) colors.
 // If foreground and background are the same, unset bits are transparent
-void SSD1306_drawBitmap(int16 x, int16 y,
- const uint8 *bitmap, int16 w, int16 h, uint16 color, uint16 bg) {
+void SSD1306_drawBitmap(int16 x, int16 y, uint8 *bitmap,
+      int16 w, int16 h, uint16 color, uint16 bg) {
 
   int16 i, j, byteWidth = (w + 7) / 8;
-  uint8 byte;
+  uint8 byte = 0;
 
   for(j=0; j<h; j++) {
     for(i=0; i<w; i++ ) {
       if(i & 7) byte <<= 1;
       else      byte   = bitmap[j * byteWidth + i / 8];
-      if(byte & 0x80) drawPixel(x+i, y+j, color);
-      else if(color != bg) drawPixel(x+i, y+j, bg);
+      if(byte & 0x80) SSD1306_drawPixel(x+i, y+j, color);
+      else if(color != bg) SSD1306_drawPixel(x+i, y+j, bg);
     }
   }
 }
@@ -903,13 +900,13 @@ void SSD1306_drawXBitmap(int16 x, int16 y,
  const uint8 *bitmap, int16 w, int16 h, uint16 color) {
 
   int16 i, j, byteWidth = (w + 7) / 8;
-  uint8 byte;
+  uint8 byte = 0;
 
   for(j=0; j<h; j++) {
     for(i=0; i<w; i++ ) {
       if(i & 7) byte >>= 1;
       else      byte   = bitmap[j * byteWidth + i / 8];
-      if(byte & 0x01) drawPixel(x+i, y+j, color);
+      if(byte & 0x01) SSD1306_drawPixel(x+i, y+j, color);
     }
   }
 }
@@ -927,7 +924,7 @@ size_t SSD1306_write(uint8 c) {
         _cursor_x  = 0;            // Reset x to zero
         _cursor_y += _textsize * 8; // Advance y one line
       }
-      drawChar(_cursor_x, _cursor_y, c, _textcolor, _textbgcolor, _textsize);
+      SSD1306_drawChar(_cursor_x, _cursor_y, c, _textcolor, _textbgcolor, _textsize);
       _cursor_x += _textsize * 6;
     }
 
@@ -950,11 +947,12 @@ size_t SSD1306_write(uint8 c) {
             _cursor_x  = 0;
             _cursor_y += (int16)_textsize * _gfxFont->yAdvance;
           }
-          drawChar(_cursor_x, _cursor_y, c, _textcolor, _textbgcolor, _textsize);
+          SSD1306_drawChar(_cursor_x, _cursor_y, c, _textcolor, _textbgcolor, _textsize);
         }
         _cursor_x += glyph->xAdvance * (int16)_textsize;
       }
     }
+  }
 
   return 1;
 }
@@ -975,15 +973,15 @@ void SSD1306_drawChar(int16 x, int16 y, unsigned char c,
 
     for(int8 i=0; i<6; i++ ) {
       uint8 line;
-      if(i < 5) line = font[(c*5)+i];
+      if(i < 5) line = default_font[(c*5)+i];
       else      line = 0x0;
       for(int8 j=0; j<8; j++, line >>= 1) {
         if(line & 0x1) {
-          if(size == 1) drawPixel(x+i, y+j, color);
-          else          fillRect(x+(i*size), y+(j*size), size, size, color);
+          if(size == 1) SSD1306_drawPixel(x+i, y+j, color);
+          else          SSD1306_fillRect(x+(i*size), y+(j*size), size, size, color);
         } else if(bg != color) {
-          if(size == 1) drawPixel(x+i, y+j, bg);
-          else          fillRect(x+i*size, y+j*size, size, size, bg);
+          if(size == 1) SSD1306_drawPixel(x+i, y+j, bg);
+          else          SSD1306_fillRect(x+i*size, y+j*size, size, size, bg);
         }
       }
     }
@@ -1000,12 +998,13 @@ void SSD1306_drawChar(int16 x, int16 y, unsigned char c,
 
     uint16 bo = glyph->bitmapOffset;
     uint8  w  = glyph->width,
-           h  = glyph->height,
-           xa = glyph->xAdvance;
+           h  = glyph->height;
+    
+    //uint8 xa = glyph->xAdvance;
     int8   xo = glyph->xOffset,
            yo = glyph->yOffset;
-    uint8  xx, yy, bits, bit = 0;
-    int16  xo16, yo16;
+    uint8  xx, yy, bits = 0, bit = 0;
+    int16  xo16 = 0, yo16 = 0;
 
     if(size > 1) {
       xo16 = xo;
@@ -1037,9 +1036,9 @@ void SSD1306_drawChar(int16 x, int16 y, unsigned char c,
         }
         if(bits & 0x80) {
           if(size == 1) {
-            drawPixel(x+xo+xx, y+yo+yy, color);
+            SSD1306_drawPixel(x+xo+xx, y+yo+yy, color);
           } else {
-            fillRect(x+(xo16+xx)*size, y+(yo16+yy)*size, size, size, color);
+            SSD1306_fillRect(x+(xo16+xx)*size, y+(yo16+yy)*size, size, size, color);
           }
         }
         bits <<= 1;
@@ -1054,11 +1053,11 @@ void SSD1306_setCursor(int16 x, int16 y) {
   _cursor_y = y;
 }
 
-int16 SSD1306_getCursorX(void) const {
+int16 SSD1306_getCursorX(void) {
   return _cursor_x;
 }
 
-int16 SSD1306_getCursorY(void) const {
+int16 SSD1306_getCursorY(void) {
   return _cursor_y;
 }
 
@@ -1077,7 +1076,7 @@ void SSD1306_setTextWrap(int w) {
   _wrap = w;
 }
 
-uint8 SSD1306_getRotation(void) const {
+uint8 SSD1306_getRotation(void) {
   return _rotation;
 }
 
@@ -1153,7 +1152,7 @@ void SSD1306_getTextBounds(char *str, int16 x, int16 y,
             gh    = glyph->height;
             xa    = glyph->xAdvance;
             xo    = glyph->xOffset;
-            yo    = &glyph->yOffset;
+            yo    = glyph->yOffset;
             if(_wrap && ((x + (((int16)xo + gw) * ts)) >= _width)) {
               // Line wrap
               x  = 0;  // Reset x to 0
@@ -1214,11 +1213,11 @@ void SSD1306_getTextBounds(char *str, int16 x, int16 y,
 }
 
 // Return the size of the display (per current rotation)
-int16 SSD1306_width(void) const {
+int16 SSD1306_width(void) {
   return _width;
 }
 
-int16 SSD1306_height(void) const {
+int16 SSD1306_height(void) {
   return _height;
 }
 

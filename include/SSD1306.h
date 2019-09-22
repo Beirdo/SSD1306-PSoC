@@ -164,11 +164,12 @@ void SSD1306_drawFastVLine(int16 x, int16 y, int16 h, uint16 color);
 void SSD1306_drawFastHLine(int16 x, int16 y, int16 w, uint16 color);
 
 extern const uint8 lcd_logo[SSD1306_RAM_MIRROR_SIZE];
+extern const uint8 default_font[];
 
 // And now for the parts from the old base class.  Note: these have all been
 // renamed to being SSD1306, but originally were from Adafruit_GFX class
 
-void SSD1306_initialize(int16 w, int16 h); // Constructor
+void SSD1306_initialize(void); // Constructor
 
 void SSD1306_drawLine(int16 x0, int16 y0, int16 x1, int16 y1, uint16 color);
 void SSD1306_drawRect(int16 x, int16 y, int16 w, int16 h, uint16 color);

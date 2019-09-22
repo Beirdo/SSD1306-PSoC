@@ -20,6 +20,10 @@
 #define clamp(x, y, z) min(max((x), (y)), (z))
 #define _abs(x) ((x) < 0 ? -(x) : (x))
     
+#ifndef _swap_int16
+#define _swap_int16(a, b) { int16 t = a; a = b; b = t; }
+#endif
+    
 // 32-bit word => ABCD, 16 bit word => CD
 #define BYTE_A(x)  (((x) >> 24) & 0xFF)
 #define BYTE_B(x)  (((x) >> 16) & 0xFF)
