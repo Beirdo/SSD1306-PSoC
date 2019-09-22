@@ -32,12 +32,13 @@ All text above, and the splash screen must be included in any redistribution
 #define _SSD1306_H_
 
 #include "project.h"
+#include "gfxfont.h"
 
 #define BLACK 0
 #define WHITE 1
 #define INVERSE 2
 
-#define SSD1306_I2C_ADDRESS   0x3C  // 011110+SA0+RW - 0x3C or 0x3D
+#define SSD1306_I2C_ADDRESS   0x3C  // 011110+SA0 - 0x3C or 0x3D
 // Address for 128x32 is 0x3C
 // Address for 128x64 is 0x3D (default) or 0x3C (if SA0 is grounded)
 
@@ -80,13 +81,10 @@ All text above, and the splash screen must be included in any redistribution
   #define SSD1306_LCDHEIGHT                 16
 #endif
 
-#define SSD1306_BUFFER_SIZE SSD1306_LCDWIDTH
 #define SSD1306_RAM_MIRROR_SIZE (SSD1306_LCDWIDTH * SSD1306_LCDHEIGHT / 8)
 
 #define SSD1306_PIXEL_ADDR(x, y) ((x) + ((y) >> 3) * SSD1306_LCDWIDTH)
-#define SSD1306_BUFFER_ADDR(x, y) SSD1306_PIXEL_ADDR(x, y & 0x0008)
 #define SSD1306_PIXEL_MASK(y)	 (1 << ((y) & 0x07))
-#define SSD1306_PAGE_BIT(y)	 (1 << ((y) >> 3))
 
 #define SSD1306_SETCONTRAST 0x81
 #define SSD1306_DISPLAYALLON_RESUME 0xA4
@@ -140,22 +138,25 @@ typedef enum {
     TOGGLE_BITS,
 } oper_t;
 
-void SSD1306_initialize(uint8 i2caddr = SSD1306_I2C_ADDRESS);
+void SSD1306_initialize(void);
+void SSD1306_setAddress(uint8 i2caddr);
+void SSD1306_setVccstate(uint8 vccstate);
+void SSD1306_reset(void);
 
-void SSD1306_begin(uint8 switchvcc = SSD1306_SWITCHCAPVCC);
+void SSD1306_begin(void);
 
 void SSD1306_clearDisplay(void);
 void SSD1306_invertDisplay(uint8 i);
 void SSD1306_display();
 
-void SSD1306_startscrollright(uint8 start, uint8 stop);
-void SSD1306_startscrollleft(uint8 start, uint8 stop);
+void SSD1306_startScrollRight(uint8 start, uint8 stop);
+void SSD1306_startScrollLeft(uint8 start, uint8 stop);
 
-void SSD1306_startscrolldiagright(uint8 start, uint8 stop);
-void SSD1306_startscrolldiagleft(uint8 start, uint8 stop);
-void SSD1306_stopscroll(void);
+void SSD1306_startScrollDiagRight(uint8 start, uint8 stop);
+void SSD1306_startScrollDiagLeft(uint8 start, uint8 stop);
+void SSD1306_stopScroll(void);
 
-void SSD1306_dim(boolean dim);
+void SSD1306_dim(int dim);
 
 void SSD1306_drawPixel(int16 x, int16 y, uint16 color);
 
@@ -163,5 +164,57 @@ void SSD1306_drawFastVLine(int16 x, int16 y, int16 h, uint16 color);
 void SSD1306_drawFastHLine(int16 x, int16 y, int16 w, uint16 color);
 
 extern const uint8 lcd_logo[SSD1306_RAM_MIRROR_SIZE];
+
+// And now for the parts from the old base class.  Note: these have all been
+// renamed to being SSD1306, but originally were from Adafruit_GFX class
+
+void Adafruit_GFX_initialize(int16 w, int16 h); // Constructor
+
+void Adafruit_GFX_drawLine(int16 x0, int16 y0, int16 x1, int16 y1, uint16 color);
+void Adafruit_GFX_drawRect(int16 x, int16 y, int16 w, int16 h, uint16 color);
+void Adafruit_GFX_fillRect(int16 x, int16 y, int16 w, int16 h, uint16 color);
+void Adafruit_GFX_fillScreen(uint16 color);
+
+void Adafruit_GFX_drawCircle(int16 x0, int16 y0, int16 r, uint16 color);
+void Adafruit_GFX_drawCircleHelper(int16 x0, int16 y0, int16 r,
+      uint8 cornername, uint16 color);
+
+void Adafruit_GFX_fillCircle(int16 x0, int16 y0, int16 r, uint16 color);
+void Adafruit_GFX_fillCircleHelper(int16 x0, int16 y0, int16 r, uint8 cornername,
+      int16 delta, uint16 color);
+void Adafruit_GFX_drawTriangle(int16 x0, int16 y0, int16 x1, int16 y1,
+      int16 x2, int16 y2, uint16 color);
+void Adafruit_GFX_fillTriangle(int16 x0, int16 y0, int16 x1, int16 y1,
+      int16 x2, int16 y2, uint16 color);
+void Adafruit_GFX_drawRoundRect(int16 x0, int16 y0, int16 w, int16 h,
+      int16 radius, uint16 color);
+void Adafruit_GFX_fillRoundRect(int16 x0, int16 y0, int16 w, int16 h,
+      int16 radius, uint16 color);
+void Adafruit_GFX_drawBitmap(int16 x, int16 y, uint8 *bitmap,
+      int16 w, int16 h, uint16 color, uint16 bg);
+void Adafruit_GFX_drawXBitmap(int16 x, int16 y, const uint8 *bitmap,
+      int16 w, int16 h, uint16 color);
+void Adafruit_GFX_drawChar(int16 x, int16 y, unsigned char c, uint16 color,
+      uint16 bg, uint8 size);
+void Adafruit_GFX_setCursor(int16 x, int16 y);
+void Adafruit_GFX_setTextColor(uint16 c, uint16 bg);
+void Adafruit_GFX_setTextSize(uint8 s);
+void Adafruit_GFX_setTextWrap(int w);
+void Adafruit_GFX_setRotation(uint8 r);
+void Adafruit_GFX_cp437(int x);
+void Adafruit_GFX_setFont(const GFXfont *f);
+void Adafruit_GFX_getTextBounds(char *string, int16 x, int16 y,
+      int16 *x1, int16 *y1, uint16 *w, uint16 *h);
+
+size_t Adafruit_GFX_write(uint8);
+
+int16 Adafruit_GFX_height(void);
+int16 Adafruit_GFX_width(void);
+
+uint8 Adafruit_GFX_getRotation(void);
+
+// get current cursor position (get rotation safe maximum values, using: width() for x, height() for y)
+int16 Adafruit_GFX_getCursorX(void);
+int16 Adafruit_GFX_getCursorY(void);
 
 #endif /* _SSD1306_H_ */
