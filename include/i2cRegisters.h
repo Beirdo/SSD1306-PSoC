@@ -15,6 +15,7 @@
     
 #include "project.h"
     
+uint8 i2c_register_test_device(uint8 addr);
 uint8 i2c_register_read(uint8 addr, uint8 regnum);
 void i2c_register_write(uint8 addr, uint8 regnum, uint8 value);
 uint8 i2c_register_read_noreg(uint8 addr);
