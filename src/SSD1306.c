@@ -90,6 +90,16 @@ void SSD1306_reset(void) {
   _show_logo = 1;
 }
 
+void SSD1306_displayOff(void)
+{
+  _ssd1306_command(SSD1306_DISPLAYOFF);            // 0xAE
+}
+
+void SSD1306_displayOn(void)
+{
+  _ssd1306_command(SSD1306_DISPLAYON);             //--turn on oled panel
+}
+
 static void _operCache(int16 x, int16 y, oper_t oper_, uint8 mask)
 {
     uint8 *addr = &draw_pixel(x, y);

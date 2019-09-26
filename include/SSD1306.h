@@ -145,6 +145,8 @@ void SSD1306_reset(void);
 
 void SSD1306_begin(void);
 
+void SSD1306_displayOff(void);
+void SSD1306_displayOn(void);
 void SSD1306_clearDisplay(void);
 void SSD1306_invertDisplay(uint8 i);
 void SSD1306_display();
