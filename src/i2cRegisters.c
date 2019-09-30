@@ -48,7 +48,7 @@ uint8 i2c_register_test_device(uint8 addr)
     }
     
     xSemaphoreTakeRecursive(i2cBusSemaphore, portMAX_DELAY);
-    value = I2C_MasterSendStart(addr, 1);
+    status = I2C_MasterSendStart(addr, 1);
     I2C_MasterReadByteY(1, value);
     I2C_MasterSendStop();
     xSemaphoreGiveRecursive(i2cBusSemaphore);
