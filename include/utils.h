@@ -47,6 +47,8 @@
 #define ustrlen(x) (strlen((char *)(x)))
 #endif
 
+#define NELEMS(x) (sizeof(x) / sizeof((x)[0]))
+
 int16 convert_temperature(uint16 raw_value, int shifts, uint32 mask_off_bits);
     
 #endif // __utils_h__
